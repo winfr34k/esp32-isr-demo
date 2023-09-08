@@ -1,12 +1,12 @@
-use std::error::Error;
-use std::ffi::{c_char, CStr};
-use std::mem;
 use esp_idf_hal::gpio::{InterruptType, PinDriver, Pull};
 use esp_idf_hal::prelude::Peripherals;
 use esp_idf_svc::eventloop::{
     EspEventFetchData, EspEventPostData, EspSystemEventLoop, EspTypedEventDeserializer,
     EspTypedEventSerializer, EspTypedEventSource,
 };
+use std::error::Error;
+use std::ffi::{c_char, CStr};
+use std::mem;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // It is necessary to call this function once. Otherwise some patches to the runtime
@@ -38,7 +38,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         boot_button.subscribe(move || {
             // We can only post to an event loop if it's allowed using
             // `CONFIG_ESP_EVENT_POST_FROM_ISR=y`.
-            system_loop.post(&CustomEvent::Boop, None)
+            system_loop
+                .post(&CustomEvent::Boop, None)
                 .expect("ISR could not post message!");
         })?;
     }
@@ -65,7 +66,10 @@ impl EspTypedEventSource for CustomEvent {
 }
 
 impl EspTypedEventDeserializer<CustomEvent> for CustomEvent {
-    fn deserialize<R>(data: &EspEventFetchData, f: &mut impl for<'a> FnMut(&'a CustomEvent) -> R) -> R {
+    fn deserialize<R>(
+        data: &EspEventFetchData,
+        f: &mut impl for<'a> FnMut(&'a CustomEvent) -> R,
+    ) -> R {
         unsafe { f(data.as_payload()) }
     }
 }
@@ -74,11 +78,7 @@ impl EspTypedEventSerializer<CustomEvent> for CustomEvent {
     fn serialize<R>(payload: &CustomEvent, f: impl for<'a> FnOnce(&'a EspEventPostData) -> R) -> R {
         let data;
         unsafe {
-            data = EspEventPostData::new(
-                CustomEvent::source(),
-                CustomEvent::event_id(),
-                payload,
-            );
+            data = EspEventPostData::new(CustomEvent::source(), CustomEvent::event_id(), payload);
         }
         f(&data)
     }
